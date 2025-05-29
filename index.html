@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple URL Shortener</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #f0f2f5;
+            margin: 0;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="url"] {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #result {
+            margin-top: 25px;
+            padding: 15px;
+            background-color: #e9ecef;
+            border-radius: 6px;
+            word-wrap: break-word; /* Ensures long URLs wrap */
+        }
+        #result p {
+            margin: 5px 0;
+            color: #333;
+        }
+        #result a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        #result a:hover {
+            text-decoration: underline;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 Simple URL Shortener</h1>
+        <p>Powered by your Cloudflare Worker</p>
+        <label for="longUrlInput">Enter a long URL:</label>
+        <input type="url" id="longUrlInput" placeholder="e.g., https://www.example.com/very/long/path/to/page">
+        <button onclick="shortenUrl()">Shorten URL</button>
+
+        <div id="result">
+            </div>
+    </div>
+
+    <script>
+        // !! IMPORTANT: Replace this with YOUR actual deployed Worker URL !!
+        const WORKER_URL = "https://urls.worksbeyondworks.workers.dev"; // Your URL here!
+
+        async function shortenUrl() {
+            const longUrlInput = document.getElementById('longUrlInput');
+            const resultDiv = document.getElementById('result');
+            const longUrl = longUrlInput.value.trim();
+
+            resultDiv.innerHTML = ''; // Clear previous results
+
+            if (!longUrl) {
+                resultDiv.innerHTML = '<p class="error">Please enter a URL.</p>';
+                return;
+            }
+
+            // Basic URL validation
+            try {
+                new URL(longUrl);
+            } catch (e) {
+                resultDiv.innerHTML = '<p class="error">Please enter a valid URL (e.g., http://example.com or https://example.com).</p>';
+                return;
+            }
+
+
+            try {
+                const response = await fetch(`${WORKER_URL}/shorten`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ longUrl: longUrl }),
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `
+                        <p class="success">Short URL created!</p>
+                        <p><strong>Original:</strong> <a href="<span class="math-inline">\{data\.longUrl\}" target\="\_blank"\></span>{data.longUrl}</a></p>
+                        <p><strong>Short:</strong> <a href="<span class="math-inline">\{data\.shortUrl\}" target\="\_blank"\></span>{data.shortUrl}</a></p>
+                        <p>Copy this short URL:</p>
+                        <input type="text" value="${data.shortUrl}" readonly style="width: calc(100% - 20px); padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    `;
+                } else {
+                    const errorData = await response.json();
+                    resultDiv.innerHTML = `<p class="error">Error: ${errorData.error || 'Something went wrong.'}</p>`;
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                resultDiv.innerHTML = '<p class="error">Could not connect to the URL shortener service. Please check your Worker URL.</p>';
+            }
+        }
+    </script>
+</body>
+</html>
