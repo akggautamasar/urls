@@ -3,111 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple URL Shortener</title>
+    <title>QuantX Shortener</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /* Custom styles for Inter font and additional tweaks */
         body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            background-color: #f0f2f5;
-            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5; /* Light gray background */
         }
-        .container {
-            background-color: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            width: 90%;
-            max-width: 500px;
-            text-align: center;
-        }
-        h1 {
-            color: #333;
-            margin-bottom: 20px;
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-            color: #555;
-        }
-        input[type="url"] {
-            width: calc(100% - 20px);
-            padding: 10px;
-            margin-bottom: 20px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 16px;
+        /* Ensure the input field and buttons are well-aligned and responsive */
+        input[type="url"], input[type="text"] {
+            @apply w-full px-4 py-2 border border-gray-300 rounded-md text-lg focus:outline-none focus:ring-2 focus:ring-blue-500;
         }
         button {
-            background-color: #007bff;
-            color: white;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 18px;
-            transition: background-color 0.3s ease;
+            @apply px-6 py-3 rounded-lg text-white font-semibold shadow-md transition-all duration-300 ease-in-out;
         }
-        button:hover {
-            background-color: #0056b3;
+        .gradient-button {
+            background-image: linear-gradient(to right, #6366f1, #3b82f6); /* Indigo to Blue gradient */
         }
-        #result {
-            margin-top: 25px;
-            padding: 15px;
-            background-color: #e9ecef;
-            border-radius: 6px;
-            word-wrap: break-word; /* Ensures long URLs wrap */
+        .gradient-button:hover {
+            background-image: linear-gradient(to right, #4f46e5, #2563eb); /* Darker gradient on hover */
         }
-        #result p {
-            margin: 5px 0;
-            color: #333;
+        .copy-button {
+            @apply bg-green-500 hover:bg-green-600;
         }
-        #result a {
-            color: #007bff;
-            text-decoration: none;
-        }
-        #result a:hover {
-            text-decoration: underline;
-        }
-        .error {
-            color: red;
-            font-weight: bold;
-        }
-        .success {
-            color: green;
-            font-weight: bold;
+        .visit-button {
+            @apply bg-purple-500 hover:bg-purple-600;
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <h1>🔗 Simple URL Shortener</h1>
-        <p>Powered by your Cloudflare Worker</p>
-        <label for="longUrlInput">Enter a long URL:</label>
-        <input type="url" id="longUrlInput" placeholder="e.g., https://www.example.com/very/long/path/to/page">
-        <button onclick="shortenUrl()">Shorten URL</button>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+    <div class="container bg-white p-8 rounded-xl shadow-2xl w-full max-w-xl text-center">
+        <h1 class="text-5xl font-extrabold text-gray-800 mb-6 flex items-center justify-center">
+            <span class="text-blue-600 mr-3">🔗</span>QuantX Shortener
+        </h1>
+        <p class="text-lg text-gray-600 mb-8">Your powerful link management solution</p>
 
-        <div id="result">
+        <label for="longUrlInput" class="block text-xl font-medium text-gray-700 mb-3">Enter a long URL:</label>
+        <input type="url" id="longUrlInput" placeholder="e.g., https://www.example.com/very/long/path/to/page" class="mb-6">
+        <button onclick="shortenUrl()" class="gradient-button w-full mb-4">Shorten URL</button>
+
+        <div class="mt-6 pt-6 border-t border-gray-200">
+            <label for="keywordsInput" class="block text-xl font-medium text-gray-700 mb-3">Optional: Add keywords for AI generation:</label>
+            <input type="text" id="keywordsInput" placeholder="e.g., tech, news, tutorial" class="mb-4">
+            <button onclick="generateTitleDescription()" class="gradient-button w-full bg-purple-600 hover:bg-purple-700">✨ Generate Title/Description ✨</button>
+        </div>
+
+        <div id="result" class="mt-8 p-6 bg-blue-50 rounded-lg border border-blue-200 hidden">
             </div>
+
+        <div id="aiResult" class="mt-8 p-6 bg-yellow-50 rounded-lg border border-yellow-200 hidden">
+            <p class="text-lg font-semibold text-gray-700 mb-3">AI Generated Content:</p>
+            <div id="aiContent" class="text-gray-800 text-left"></div>
+        </div>
+
+        <div id="messageBox" class="mt-4 p-3 rounded-md text-sm font-medium hidden"></div>
     </div>
 
     <script>
         // !! IMPORTANT: Replace this with YOUR actual deployed Worker URL !!
         const WORKER_URL = "https://urls.worksbeyondworks.workers.dev"; // Your URL here!
 
-        async function shortenUrl() {
-            const longUrlInput = document.getElementById('longUrlInput');
-            const resultDiv = document.getElementById('result');
-            const longUrl = longUrlInput.value.trim();
+        const longUrlInput = document.getElementById('longUrlInput');
+        const keywordsInput = document.getElementById('keywordsInput'); // New input for keywords
+        const resultDiv = document.getElementById('result');
+        const aiResultDiv = document.getElementById('aiResult'); // New div for AI results
+        const aiContentDiv = document.getElementById('aiContent'); // New div for AI content
+        const messageBox = document.getElementById('messageBox');
 
+        /**
+         * Displays a message in the message box.
+         * @param {string} message The message to display.
+         * @param {string} type The type of message ('success', 'error', 'info').
+         */
+        function showMessage(message, type) {
+            messageBox.textContent = message;
+            messageBox.className = `mt-4 p-3 rounded-md text-sm font-medium block`; // Reset classes
+            if (type === 'success') {
+                messageBox.classList.add('bg-green-100', 'text-green-800');
+            } else if (type === 'error') {
+                messageBox.classList.add('bg-red-100', 'text-red-800');
+            } else {
+                messageBox.classList.add('bg-blue-100', 'text-blue-800');
+            }
+            messageBox.classList.remove('hidden');
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, 5000); // Hide after 5 seconds
+        }
+
+        /**
+         * Copies the given text to the clipboard.
+         * @param {string} text The text to copy.
+         */
+        function copyToClipboard(text) {
+            // Using document.execCommand('copy') for better compatibility in iFrames
+            const input = document.createElement('textarea');
+            input.value = text;
+            document.body.appendChild(input);
+            input.select();
+            try {
+                document.execCommand('copy');
+                showMessage('Short URL copied to clipboard!', 'success');
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+                showMessage('Failed to copy URL. Please copy manually.', 'error');
+            }
+            document.body.removeChild(input);
+        }
+
+        /**
+         * Handles the URL shortening process.
+         */
+        async function shortenUrl() {
+            const longUrl = longUrlInput.value.trim();
+            resultDiv.classList.add('hidden'); // Hide result div initially
             resultDiv.innerHTML = ''; // Clear previous results
+            messageBox.classList.add('hidden'); // Hide any previous messages
+            aiResultDiv.classList.add('hidden'); // Hide AI result div as well
 
             if (!longUrl) {
-                resultDiv.innerHTML = '<p class="error">Please enter a URL.</p>';
+                showMessage('Please enter a URL.', 'error');
                 return;
             }
 
@@ -115,12 +131,12 @@
             try {
                 new URL(longUrl);
             } catch (e) {
-                resultDiv.innerHTML = '<p class="error">Please enter a valid URL (e.g., http://example.com or https://example.com).</p>';
+                showMessage('Please enter a valid URL (e.g., http://example.com or https://example.com).', 'error');
                 return;
             }
 
-
             try {
+                showMessage('Shortening URL...', 'info');
                 const response = await fetch(`${WORKER_URL}/shorten`, {
                     method: 'POST',
                     headers: {
@@ -132,20 +148,109 @@
                 if (response.ok) {
                     const data = await response.json();
                     resultDiv.innerHTML = `
-                        <p class="success">Short URL created!</p>
-                        <p><strong>Original:</strong> <a href="<span class="math-inline">\{data\.longUrl\}" target\="\_blank"\></span>{data.longUrl}</a></p>
-                        <p><strong>Short:</strong> <a href="<span class="math-inline">\{data\.shortUrl\}" target\="\_blank"\></span>{data.shortUrl}</a></p>
-                        <p>Copy this short URL:</p>
-                        <input type="text" value="${data.shortUrl}" readonly style="width: calc(100% - 20px); padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        <p class="text-lg font-semibold text-gray-700 mb-3">Your Shortened URL:</p>
+                        <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+                            <input type="text" id="shortUrlOutput" value="${data.shortUrl}" readonly class="flex-grow mb-3 sm:mb-0">
+                            <button onclick="copyToClipboard('${data.shortUrl}')" class="copy-button">Copy</button>
+                            <a href="${data.shortUrl}" target="_blank" class="visit-button flex items-center justify-center text-center no-underline">Visit</a>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-3">Original: <a href="${data.longUrl}" target="_blank" class="text-blue-500 hover:underline">${data.longUrl}</a></p>
                     `;
+                    resultDiv.classList.remove('hidden'); // Show the result div
+                    showMessage('Short URL created successfully!', 'success');
                 } else {
                     const errorData = await response.json();
-                    resultDiv.innerHTML = `<p class="error">Error: ${errorData.error || 'Something went wrong.'}</p>`;
+                    showMessage(`Error: ${errorData.error || 'Something went wrong.'}`, 'error');
                 }
             } catch (error) {
                 console.error('Fetch error:', error);
-                resultDiv.innerHTML = '<p class="error">Could not connect to the URL shortener service. Please check your Worker URL.</p>';
+                showMessage('Could not connect to the URL shortener service. Please check your Worker URL and network connection.', 'error');
             }
+        }
+
+        /**
+         * Generates a catchy title and description for the URL using Gemini API.
+         */
+        async function generateTitleDescription() {
+            const longUrl = longUrlInput.value.trim();
+            const keywords = keywordsInput.value.trim();
+
+            aiResultDiv.classList.add('hidden'); // Hide AI result div initially
+            aiContentDiv.innerHTML = ''; // Clear previous AI results
+            messageBox.classList.add('hidden'); // Hide any previous messages
+
+            if (!longUrl) {
+                showMessage('Please enter a URL to generate a title/description.', 'error');
+                return;
+            }
+
+            // Basic URL validation
+            try {
+                new URL(longUrl);
+            } catch (e) {
+                showMessage('Please enter a valid URL (e.g., http://example.com or https://example.com).', 'error');
+                return;
+            }
+
+            showMessage('Generating title and description...', 'info');
+
+            let prompt = `Generate a short, catchy title (max 7 words) and a brief description (max 3 sentences) for the following URL: ${longUrl}.`;
+            if (keywords) {
+                prompt += ` Consider these keywords: ${keywords}.`;
+            }
+            prompt += ` Format the output as:
+Title: [Generated Title]
+Description: [Generated Description]`;
+
+            try {
+                let chatHistory = [];
+                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                const payload = { contents: chatHistory };
+                const apiKey = ""; // Canvas will automatically provide this at runtime for gemini-2.0-flash
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const generatedText = result.candidates[0].content.parts[0].text;
+                    aiContentDiv.innerHTML = formatGeneratedText(generatedText); // Helper to format output
+                    aiResultDiv.classList.remove('hidden'); // Show the AI result div
+                    showMessage('Title and description generated!', 'success');
+                } else {
+                    showMessage('Failed to generate title/description. No candidates found.', 'error');
+                    console.error('Gemini API response structure unexpected:', result);
+                }
+            } catch (error) {
+                console.error('Error calling Gemini API:', error);
+                showMessage('Error generating title/description. Please try again.', 'error');
+            }
+        }
+
+        /**
+         * Helper function to format the raw text from Gemini into HTML.
+         * Assumes Gemini returns "Title: ...\nDescription: ..."
+         */
+        function formatGeneratedText(text) {
+            const lines = text.split('\n');
+            let formattedHtml = '';
+            lines.forEach(line => {
+                if (line.startsWith('Title:')) {
+                    formattedHtml += `<p class="font-bold text-xl mb-2">${line.replace('Title:', '').trim()}</p>`;
+                } else if (line.startsWith('Description:')) {
+                    formattedHtml += `<p class="text-base">${line.replace('Description:', '').trim()}</p>`;
+                } else {
+                    formattedHtml += `<p class="text-base">${line.trim()}</p>`;
+                }
+            });
+            return formattedHtml;
         }
     </script>
 </body>
